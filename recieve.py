@@ -11,5 +11,11 @@ msg = can0.recv(10.0)
 print (msg)
 if msg is None:
     print('Timeout occurred, no message.')
+else:
+    print('writing to file')
+    fileObject = open('data.txt', 'w')
+    fileObject.write(str(msg))
+    fileObject.write("SUCCCESS")
+    fileObject.close()
 
 os.system('sudo ifconfig can0 down')
