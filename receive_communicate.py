@@ -34,24 +34,24 @@ def receiver():
     buf = bytearray(24)
     while True:
         try:
-            if conn.recv_into(buf, 4) == 0:
+            if conn.recv_into(buf, 2) == 0:
                 logging.warning("Empty")
                 raise ServerDisconnectError
             print()
             print(buf)
-            length = 4#int.from_bytes([buf[1]], "little")
-            r = bytearray(length)
+            msgLength = 2#int.from_bytes([buf[1]], "little")
+            r = bytearray(msgLength)
             i = 0
             
-            while i < length:
-                recv_len = conn.recv_into(buf, length - i)
+            while i < msgLength:
+                recv_len = conn.recv_into(buf, msgLength + 1 - i)
                 if recv_len == 0:
                     logging.warning("Empty Packet")
                     raise ServerDisconnectError
                 r[i : recv_len + i] = buf[:recv_len]
                 i += recv_len
             print(r)
-            print(buf)
+
 
         except ServerDisconnectError:
             conn = reconnect_socket(s, conn)

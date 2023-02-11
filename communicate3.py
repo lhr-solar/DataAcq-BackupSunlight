@@ -17,19 +17,17 @@ from sim.main import CAN_Test_Data
 HOST = '169.254.240.155'
 PORT = 65432
 
-os.system('sudo ifconfig can0 down')
 os.system('sudo ip link set can0 type can bitrate 125000')
 os.system('sudo ifconfig can0 up')
 
-queue = Queue.SimpleQueue()
+queue = []
 
 def print_message(msg: can.Message) -> None:
     """Regular callback function. Can also be a coroutine."""
     print(msg)
     global queue
-    for _ in range(80):
-        list(map(lambda msg: queue.put(msg), CAN_Test_Data))
-    # queue.put(msg, False)
+    #map(lambda msg: queue.put(msg), CAN_Test_Data)
+    queue += [msg]
 
 async def canLoop() -> None:
     """The main function that runs in the loop."""
@@ -83,21 +81,21 @@ class ClientDisconnectError(Exception):
     pass
 
 async def sender(s):
+    print("sender")
+    i = 0
     while True:
         await asyncio.sleep(0)
-        try:
-            while (i := queue.get(False)):
-                try:
-                    print(f'Queue Size: {queue.qsize()}')
-                    buf = bytearray(i)
-                    s.send(buf)
-                    print("Sent Buffer")
+        while len(queue) > 0:
+            print("LEN: ")
+            print(i)
+            try:
+                buf = bytearray(queue.pop(0).data)
+                s.send(buf)
 
-                except ClientDisconnectError:
-                    s = reconnect_socket(s)
-                await asyncio.sleep(0)
-        except Queue.Empty as e:
-            pass
+            except ClientDisconnectError:
+                s = reconnect_socket(s)
+            await asyncio.sleep(0)
+        await asyncio.sleep(0)
 
                 
 # async def main():
