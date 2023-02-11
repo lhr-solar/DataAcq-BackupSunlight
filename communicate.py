@@ -24,7 +24,7 @@ def print_message(msg: can.Message) -> None:
     """Regular callback function. Can also be a coroutine."""
     print(msg)
     global queue
-    queue += [msg]
+    queue += [msg] #comment
 
 async def canLoop() -> None:
     """The main function that runs in the loop."""
