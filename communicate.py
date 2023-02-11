@@ -2,6 +2,8 @@ import socket
 import logging
 import time
 
+import queue as Queue
+
 import asyncio
 import os
 from typing import List
@@ -18,13 +20,14 @@ PORT = 65432
 os.system('sudo ip link set can0 type can bitrate 125000')
 os.system('sudo ifconfig can0 up')
 
-queue = []
+queue = Queue.SimpleQueue()
 
 def print_message(msg: can.Message) -> None:
     """Regular callback function. Can also be a coroutine."""
     print(msg)
     global queue
-    queue += [msg] #comment
+    #map(lambda msg: queue.put(msg), CAN_Test_Data)
+    queue.put(msg, False)
 
 async def canLoop() -> None:
     """The main function that runs in the loop."""
@@ -46,15 +49,16 @@ async def canLoop() -> None:
         loop = asyncio.get_running_loop()
         notifier = can.Notifier(bus, listeners, loop=loop)
         # Start sending first message
-        # bus.send(can.Message(arbitration_id=0))
 
         print("Sending CAN messages...")
                 
         asyncio.ensure_future(sender(s))
         
+        # bus.send(can.Message(arbitration_id=0))
         while True:
             # print("a")
             await reader.get_message()
+            
             # sender()
             # print("b")
             # await asyncio.sleep(0.5)
@@ -81,18 +85,26 @@ async def sender(s):
     i = 0
     while True:
         await asyncio.sleep(0)
-        while len(queue) > 0:
-            print("LEN: ", len(queue))
-            try:
-                buf = bytearray(queue.pop(0))
-                s.send(buf)
+        try:
+            while (i := queue.get(False)):
+                print("LEN: ")
+                print(i)
+                try:
+                    buf = bytearray(i)
+                    s.send(buf)
 
-            except ClientDisconnectError:
-                s = reconnect_socket(s)
+                except ClientDisconnectError:
+                    s = reconnect_socket(s)
+                await asyncio.sleep(0)
             await asyncio.sleep(0)
+        except Queue.Empty as e:
+            await asyncio.sleep(0)
+
                 
 # async def main():
 #     asyncio.ensure_future(canLoop())
+
+#Use multiprocessing or multithreading
     
     
 
