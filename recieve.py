@@ -22,7 +22,7 @@ async def main() -> None:
     """The main function that runs in the loop."""
 
     with can.Bus(  # type: ignore
-        interface="socketcan", channel="can0", receive_own_messages=True
+        interface="socketcan", channel="can0", receive_own_messages=False
     ) as bus:
         reader = can.AsyncBufferedReader()
         logger = can.Logger("logfile.asc")
@@ -41,7 +41,7 @@ async def main() -> None:
         print("Bouncing 10 messages...")
         for _ in range(10):
             # Wait for next message from AsyncBufferedReader
-            msg = await reader.get_message()
+            await reader.get_message()
             # Delay response
             # await asyncio.sleep(0.5)
             # msg.arbitration_id += 1
