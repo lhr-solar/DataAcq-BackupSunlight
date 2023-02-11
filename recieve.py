@@ -1,14 +1,17 @@
-import os
-import can
-import asyncio
+#!/usr/bin/env python
+
+"""
+This example demonstrates how to use async IO with python-can.
+"""
+
+import asyncio, os
 from typing import List
 
+import can
 from can.notifier import MessageRecipient
 
-os.system('sudo ip link set can0 type can bitrate 100000')
+os.system('sudo ip link set can0 type can bitrate 125000')
 os.system('sudo ifconfig can0 up')
-
-# can0 = can.interface.Bus(channel = 'can0', bustype = 'socketcan')# socketcan_native
 
 def print_message(msg: can.Message) -> None:
     """Regular callback function. Can also be a coroutine."""
@@ -18,8 +21,8 @@ def print_message(msg: can.Message) -> None:
 async def main() -> None:
     """The main function that runs in the loop."""
 
-    with can.interface.Bus(  # type: ignore
-        channel="can0", bustype='socketcan'
+    with can.Bus(  # type: ignore
+        interface="socketcan", channel="can0", receive_own_messages=True
     ) as bus:
         reader = can.AsyncBufferedReader()
         logger = can.Logger("logfile.asc")
@@ -39,7 +42,6 @@ async def main() -> None:
         for _ in range(10):
             # Wait for next message from AsyncBufferedReader
             msg = await reader.get_message()
-            print(str(msg))
             # Delay response
             # await asyncio.sleep(0.5)
             # msg.arbitration_id += 1
@@ -51,13 +53,7 @@ async def main() -> None:
 
         # Clean-up
         notifier.stop()
-        #os.system('sudo ifconfig can0 down')
-# or
-# listener.on_message_received(msg)
-
-# Important to ensure all outputs are flushed
-
-
+        os.system('sudo ifconfig can0 down')
 
 if __name__ == "__main__":
     asyncio.run(main())
