@@ -1,5 +1,8 @@
+cffi==1.16.0
 msgpack==1.0.4
 packaging==23.0
+pycparser==2.21
 python-can==4.1.0
-typing-extensions==4.4.0
+smbus-cffi==0.5.1
+typing_extensions==4.4.0
 wrapt==1.14.1
