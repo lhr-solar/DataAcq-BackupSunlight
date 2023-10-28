@@ -41,7 +41,6 @@ def read_gps(q: Queue.SimpleQueue):
     c = None
     response = []
     try:
-        connect_bus()
         while True: # Newline, or bad char.
             c = BUS.read_byte(address)
             if c == 255:
@@ -68,9 +67,14 @@ async def send_gps(s: socket.socket):
         try:
             while (i := queue.get(False)):
                 try:
-                    buf = bytearray(i)
-                    s.send(buf)
-                    logging.debug("Sent Buffer")
+                    msg = bytearray([0x02, 0x10])
+                    buf = bytearray(i, "utf-8").rjust(8, b'\x00')
+                    msg.extend(buf)
+                    
+                    print(i)
+                    
+                    # s.send(buf)
+                    logging.debug("Sent GPS Buffer")
 
                 except ClientDisconnectError:
                     s = reconnect_socket(s)
@@ -81,6 +85,7 @@ async def send_gps(s: socket.socket):
 async def gps_loop() -> None:
     logging.info("GPS Loop Started")
 
+    connect_bus()
     while True:
         read_gps(queue)
         await asyncio.sleep(gps_read_interval)

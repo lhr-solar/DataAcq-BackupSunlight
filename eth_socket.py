@@ -1,10 +1,9 @@
 import socket
-import logging
+import logging  
 
-HOST = '100.66.148.34'
+HOST = '169.254.173.129' # IP of the host for ethernet
 PORT = 65432
 
-logging.info("Connecting to host...")
 s = socket.create_connection(address=(HOST, PORT))
 
 def reconnect_socket() -> socket:

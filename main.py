@@ -14,4 +14,5 @@ if __name__ == "__main__":
     root = logging.getLogger()
     root.setLevel(logging.NOTSET)
 
+    logging.info("Connecting to host...")
     asyncio.run(main())
