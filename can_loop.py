@@ -80,6 +80,7 @@ os.system('sudo ifconfig can0 up')
 os.system('sudo ifconfig can1 up')
 
 queue: Queue.SimpleQueue[can.Message] = Queue.SimpleQueue()
+arr: list[can.Message] = []
 
 def can_msg_cb(msg: can.Message) -> None:
     """Regular callback function. Can also be a coroutine."""
@@ -112,8 +113,32 @@ async def can_loop() -> None:
             await asyncio.sleep(0)
 
 queue_empty_delay = 0.03
+
+def periodically_send_can():
+    p1 = arr.pop()
+    msg = bytearray([0x03, 0x10])
+    buf = bytearray(p1.arbitration_id.to_bytes(4, "little"))
+    # p1.data.reverse()
+    if CANIDs[p1.arbitration_id] == 0:
+        buf.extend(b'\x00\x00\x00\x00')
+    else:
+        idx = p1.data[0].to_bytes(4, "little")
+        buf.extend(idx)
+    data = p1.data[1:8]
+    data.reverse()
+    data = data.ljust(8, b'\x00')
+    buf.extend(data)
+    msg.extend(buf)
+    #buf.extend(p1.data.ljust(12, b'\x00'))
+    #msg.extend(buf)
+    
+    print(msg)
+    s.send(msg)
+    logging.debug("Sent CAN Buffer")
+
+
 async def send_can(s: socket.socket):
-    arr: list[can.Message] = []
+    loop = asyncio.get_running_loop()
     while True:
         try:
             while (buf := queue.get(False)):
@@ -121,29 +146,13 @@ async def send_can(s: socket.socket):
         except ClientDisconnectError:
             s = reconnect_socket()
         except Queue.Empty:
-            while len(arr) > 0:
-                p1 = arr.pop()
-                msg = bytearray([0x03, 0x10])
-                buf = bytearray(p1.arbitration_id.to_bytes(4, "little"))
-                # p1.data.reverse()
-                if CANIDs[p1.arbitration_id] == 0:
-                    buf.extend(b'\x00\x00\x00\x00')
-                else:
-                    idx = p1.data[0].to_bytes(4, "little")
-                    buf.extend(idx)
-                data = p1.data[1:8]
-                data.reverse()
-                data = data.ljust(8, b'\x00')
-                buf.extend(data)
-                msg.extend(buf)
-                #buf.extend(p1.data.ljust(12, b'\x00'))
-                #msg.extend(buf)
-                
-                print(msg)
-                s.send(msg)
-                logging.debug("Sent CAN Buffer")
-            await asyncio.sleep(queue_empty_delay) 
+            # Left blank intentionally
+            # If queue is empty we do nothing but wait for more messages to be sent to us
+            await asyncio.sleep(queue_empty_delay) # may be able to remove this line - ask lance?
         await asyncio.sleep(0)
+
+        handle_periodic = loop.call_later(0.000008, asyncio.ensure_future, periodically_send_can) # 120kHz = period of 0.000008 seconds
+
         
 if __name__ == "__main__":
     asyncio.run(can_loop())
