@@ -63,3 +63,4 @@ async def can_main() -> None:
         packet = header + msg_id + idx + data
         # Push the packet to the ethernet queue
         ethernet_put(packet)
+        
