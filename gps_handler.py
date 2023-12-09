@@ -6,93 +6,90 @@ import typing
 import logging
 from ethernet_handler import ethernet_put
 
-BUS = smbus.SMBus(1)
-ADDRESS = 0x42
-GPS_INTERVAL = 1
+i2c_bus = smbus.SMBus(1) # I2C bus for GPS Shield
+ADDRESS = 0x42 # GPS Shield I2C Address
+GPS_INTERVAL = 1 # Polling frequency in seconds
 
 def _connect_bus():
     """Connect to the I2C bus. Function from ozzmaker.com"""
-    global BUS
-    BUS = smbus.SMBus(1)
+    global i2c_bus
+    i2c_bus = smbus.SMBus(1)
 
 def _parse_response(gps_line) -> typing.Union[str, None]:
-    """Parse the GPS response. Function from ozzmaker.com"""
-    
+    """Parse the GPS response."""
+
     # Check #1, make sure '$' doesnt appear twice
     if gps_line.count(36) != 1:
         return None
-    
+
     # Check #2, 83 is maximum NMEA sentence length.
     if len(gps_line) >= 84:
         return None
 
     # Check #3, Make sure that only readable ASCII charaters and Carriage Return are seen.
-    for c in gps_line:
-        if (c < 32 or c > 122) and  c != 13:
-            return None
-    gpsChars = ''.join(chr(c) for c in gps_line)
-    
+    valid_chars = set(range(32,123)).union({13})
+    if not all(c in valid_chars for c in gps_line):
+        return None
+
+    gps_chars = ''.join(chr(c) for c in gps_line)
+
     # Check #4, skip txbuf allocation error
-    if gpsChars.find('txbuf') != -1:
+    if 'txbuf' in gps_chars:
         return None
 
     # Check #5, only split twice to avoid unpack error
-    gpsStr, chkSum = gpsChars.split('*',2)
-    gpsComponents = gpsStr.split(',')
-    chkVal = 0
+    gps_str, check_sum = gps_chars.split('*',2)
 
     # Remove the $ and do a manual checksum on the rest of the NMEA sentence
-    for ch in gpsStr[1:]:
-        chkVal ^= ord(ch)
-    
+    check_val = 0
+    for ch in gps_str[1:]:
+        check_val ^= ord(ch)
+
     # Compare the calculated checksum with the one in the NMEA sentence
-    if (chkVal == int(chkSum, 16)):
-        return gpsChars
+    if check_val == int(check_sum, 16):
+        return gps_chars
 
 def _handle_ctrl_c(signal, frame):
-    """Handle Ctrl-C. Function from ozzmaker.com"""
+    """Handle Ctrl-C."""
     sys.exit(130)
-    signal.signal(signal.SIGINT, _handle_ctrl_c)
+signal.signal(signal.SIGINT, _handle_ctrl_c)
 
 def _read_gps() -> typing.Union[str, None]:
-    """Read the GPS data. Function from ozzmaker.com"""
+    """Read the GPS data."""
+    BAD_CHAR = 0xFF
+    NEWLINE = 0x0A
     c = None
     response = []
     try:
         while True: # Newline, or bad char.
-            c = BUS.read_byte(ADDRESS)
-            if c == 255:
+            c = i2c_bus.read_byte(ADDRESS)
+            if c == BAD_CHAR:
                 return None
-            elif c == 10:
+            if c == NEWLINE:
                 break
-            else:
-                response.append(c)
+            response.append(c)
         gps_data = _parse_response(response)
         return gps_data
-    except IOError:
-        logging.error("GPS Read Error")
-        logging.warning("Reconnecting to GPS...")
-        _connect_bus()
     except Exception as e:
-        logging.error(f'GPS Error: {e}')
+        logging.error('GPS Error: %s', e)
         logging.warning("Reconnecting to GPS...")
         _connect_bus()
-        
+
 def _gps_put_in_ethernet_queue() -> None:
     """Read GPS data and put into the Ethernet Queue."""
     data = _read_gps()
-    if data:
-        header = bytearray([0x02, 0x10])
-        data = bytearray(data, "utf-8").rjust(8, b'\x00')
-        packet = header + data
-        ethernet_put(packet)
+    if data is None:
+        return
+    header = bytearray([0x02, 0x10])
+    data = bytearray(data, "utf-8").rjust(8, b'\x00')
+    packet = header + data
+    ethernet_put(packet)
 
 async def gps_main() -> None:
     """Connect to GPS over I2C and add data to Ethernet Queue periodically."""
 
     logging.info("GPS Loop Started")
     _connect_bus()
-    
     # Read GPS data and add to Ethernet Queue once a second
     while True:
         _gps_put_in_ethernet_queue()
