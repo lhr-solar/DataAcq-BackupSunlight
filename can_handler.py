@@ -1,9 +1,5 @@
-import logging
-import queue as Queue
 import asyncio
-from typing import List
 import can
-from can.notifier import MessageRecipient
 from ethernet_handler import ethernet_put
 
 
@@ -16,11 +12,13 @@ bus = can.Bus(
     )
 
 # CAN Queue to hold the can messages as they come in
+# _can_queue: asyncio.Queue[can.Message] = asyncio.Queue()
 _can_queue = asyncio.Queue()
 
 # CAN IDs that require an index
-index_ids = [0x104, 0x105]
-
+BPS_VOLT_ID = 0x104
+BPS_TEMP_ID = 0x105
+index_ids = [BPS_VOLT_ID,BPS_TEMP_ID]
 
 def _can_msg_callback(msg: can.Message) -> None:
     '''
@@ -42,44 +40,30 @@ async def _can_put_in_ethernet_queue() -> None:
 
         # Process the CAN message
         header = bytearray([0x03, 0x10])
-        id = p1.arbitration_id
+        msg_id = msg.arbitration_id
         # If the message contains an index, grab the index from the first byte of the data
-        if id in index_ids:
+        if msg_id in index_ids:
             idx = msg.data[0].to_bytes(4, "little")
             data = msg.data[1:8].ljust(8, b'\x00')
         # If the message does not contain an index, set the index to 0
         else:
             idx = b'\x00\x00\x00\x00'
             data = msg.data.ljust(8, b'\x00')
-        id = bytearray(id.to_bytes(4, "little"))
-        packet = header + id + idx + data
+        msg_id = bytearray(msg_id.to_bytes(4, "little"))
+        packet = header + msg_id + idx + data
 
         # Push the packet to the ethernet queue
         ethernet_put(packet)
 
-    
 async def can_main() -> None:
     '''
     This is the interrupt function for the CAN bus.
     This sets up a notifier to trigger the _can_msg_callback function
     '''
-    # Want Reader and Logger
-    reader = can.AsyncBufferedReader()
-    logger = can.Logger("somefile.asc")
-
-    # We only have 1 listener, the thing that throws the Can msg into the BUS
-    listeners: List[MessageRecipient] = [
-        _can_msg_callback # Callback Function
-    ]
-
     # Creating Notifer with an explicit loop to use for scheduling of callbacks
+    # This is necessary because the CAN bus is interrupt driven
     loop = asyncio.get_running_loop()
-    notifer = can.Notifier(bus=bus, listeners=listeners, loop=loop) #not sure that "bus" is correct here
-
-    # Start sending the messages
-    bus.send(can.Message(arbitration_id=0)) # No clue what this reall does - what is "Message" and "arbiration_id"
-
-    # They "bounced 10 messages", but we want to send more than 10 msgs
+    # notifier = can.Notifier(bus=bus, listeners=[_can_msg_callback], loop=loop)
+    can.Notifier(bus=bus, listeners=[_can_msg_callback], loop=loop)
     while True:
-        # Wait for the next message from Callback Function
-        msg = await _can_msg_callback.get_message() # shouldnt this be an Aysnc??
+        await asyncio.sleep(1)
