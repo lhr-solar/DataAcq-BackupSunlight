@@ -42,7 +42,7 @@ async def _can_put_in_ethernet_queue() -> None:
 
         # Process the CAN message
         header = bytearray([0x03, 0x10])
-        id = p1.arbitration_id
+        id = msg.arbitration_id 
         # If the message contains an index, grab the index from the first byte of the data
         if id in index_ids:
             idx = msg.data[0].to_bytes(4, "little")
