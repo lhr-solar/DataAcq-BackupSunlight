@@ -10,12 +10,12 @@ BUS = None
 ADDRESS = 0x42
 GPS_INTERVAL = 1
 
-def connect_bus():
+def _connect_bus():
     """Connect to the I2C bus. Function from ozzmaker.com"""
     global BUS
     BUS = smbus.SMBus(1)
 
-def parse_response(gps_line) -> typing.Union[str, None]:
+def _parse_response(gps_line) -> typing.Union[str, None]:
     """Parse the GPS response. Function from ozzmaker.com"""
     
     # Check #1, make sure '$' doesnt appear twice
@@ -49,12 +49,12 @@ def parse_response(gps_line) -> typing.Union[str, None]:
     if (chkVal == int(chkSum, 16)):
         return gpsChars
 
-def handle_ctrl_c(signal, frame):
+def _handle_ctrl_c(signal, frame):
     """Handle Ctrl-C. Function from ozzmaker.com"""
         sys.exit(130)
-        signal.signal(signal.SIGINT, handle_ctrl_c)
+        signal.signal(signal.SIGINT, _handle_ctrl_c)
 
-def read_gps() -> typing.Union[str, None]:
+def _read_gps() -> typing.Union[str, None]:
     """Read the GPS data. Function from ozzmaker.com"""
     c = None
     response = []
@@ -67,34 +67,34 @@ def read_gps() -> typing.Union[str, None]:
                 break
             else:
                 response.append(c)
-        gps_data = parse_response(response)
+        gps_data = _parse_response(response)
         return gps_data
     except IOError:
         logging.error("GPS Read Error")
         logging.warning("Reconnecting to GPS...")
-        connect_bus()
+        _connect_bus()
     except Exception as e:
         logging.error(f'GPS Error: {e}')
         logging.warning("Reconnecting to GPS...")
-        connect_bus()
+        _connect_bus()
         
-def gps_put_in_queue() -> None:
+def _gps_put_in_ethernet_queue() -> None:
     """Read GPS data and put into the Ethernet Queue."""
-    data = read_gps()
+    data = _read_gps()
     if data:
-        packet = bytearray([0x02, 0x10])
-        buf = bytearray(data, "utf-8").rjust(8, b'\x00')
-        packet.extend(buf)
+        header = bytearray([0x02, 0x10])
+        data = bytearray(data, "utf-8").rjust(8, b'\x00')
+        packet = header + data
         ethernet_put(packet)
 
 async def gps_main() -> None:
     """Connect to GPS over I2C and add data to Ethernet Queue periodically."""
 
     logging.info("GPS Loop Started")
-    connect_bus()
+    _connect_bus()
     
     # Read GPS data and add to Ethernet Queue once a second
     while True:
-        gps_put_in_queue()
+        _gps_put_in_ethernet_queue()
         logging.debug("GPS data added to queue")
         await asyncio.sleep(GPS_INTERVAL)
