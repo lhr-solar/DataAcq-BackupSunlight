@@ -6,7 +6,7 @@ import typing
 import logging
 from ethernet_handler import ethernet_put
 
-BUS = None
+BUS = smbus.SMBus(1)
 ADDRESS = 0x42
 GPS_INTERVAL = 1
 
@@ -51,8 +51,8 @@ def _parse_response(gps_line) -> typing.Union[str, None]:
 
 def _handle_ctrl_c(signal, frame):
     """Handle Ctrl-C. Function from ozzmaker.com"""
-        sys.exit(130)
-        signal.signal(signal.SIGINT, _handle_ctrl_c)
+    sys.exit(130)
+    signal.signal(signal.SIGINT, _handle_ctrl_c)
 
 def _read_gps() -> typing.Union[str, None]:
     """Read the GPS data. Function from ozzmaker.com"""
@@ -62,7 +62,7 @@ def _read_gps() -> typing.Union[str, None]:
         while True: # Newline, or bad char.
             c = BUS.read_byte(ADDRESS)
             if c == 255:
-                return False
+                return None
             elif c == 10:
                 break
             else:

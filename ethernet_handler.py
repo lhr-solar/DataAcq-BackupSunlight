@@ -1,4 +1,5 @@
 import socket
+import logging
 from asyncio import Queue
 
 HOST = '169.254.173.129' # IP of the host for ethernet
