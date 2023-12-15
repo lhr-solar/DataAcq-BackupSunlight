@@ -14,7 +14,8 @@ PORT = 65432
 _socket = socket.create_connection(address=(HOST, PORT))
 
 # Create a Ethernet Queue for data to be sent to the host
-_ethernet_queue = Queue()
+# _ethernet_queue = Queue()
+_ethernet_queue = None
 
 class ClientDisconnectError(Exception):
     """Raised when the client disconnects."""
@@ -27,10 +28,13 @@ def reconnect_socket():
 
 def ethernet_put(packet: bytearray) -> None:
     """Put a packet into the Ethernet Queue."""
+    global _ethernet_queue
     _ethernet_queue.put_nowait(packet)
 
 async def ethernet_send() -> None:
     """Send packets from the Ethernet Queue to the host."""
+    global _ethernet_queue
+    _ethernet_queue = Queue()
     while True:
         # Wait for a packet to be put into the queue
         packet = await _ethernet_queue.get()

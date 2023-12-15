@@ -16,23 +16,11 @@ bus = can.Bus(
         receive_own_messages=False
     )
 
-# CAN Queue to hold the can messages as they come in
-# _can_queue: asyncio.Queue[can.Message] = asyncio.Queue()
-_can_queue = asyncio.Queue()
 
 # CAN IDs that require an index
 BPS_VOLT_ID = 0x104
 BPS_TEMP_ID = 0x105
 index_ids = [BPS_VOLT_ID,BPS_TEMP_ID]
-
-def _can_msg_callback(msg: can.Message) -> None:
-    '''
-    The callback function for the CAN bus. 
-    This function will be called to put the CAN message from the interrupt
-    into internal CAN queue.
-    '''
-    _can_queue.put_nowait(msg)
-
 
 async def can_main() -> None:
     '''
@@ -41,8 +29,14 @@ async def can_main() -> None:
     '''
     # Creating Notifer with an explicit loop to use for scheduling of callbacks
     # This is necessary because the CAN bus is interrupt driven
-    loop = asyncio.get_running_loop()
-    can.Notifier(bus=bus, listeners=[_can_msg_callback], loop=loop)
+    _can_queue = asyncio.Queue() # create queue for msgs
+    can.Notifier(
+        bus=bus, 
+        listeners=[
+            (lambda x: _can_queue.put_nowait(x)) # listener enqueues messages when they are received
+        ], 
+        loop= asyncio.get_running_loop() # use main loop
+    )
 
     # Process CAN messages as they come into the queue.
     while True:
