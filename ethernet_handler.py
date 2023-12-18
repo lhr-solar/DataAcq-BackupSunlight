@@ -7,7 +7,8 @@ import socket
 import logging
 from asyncio import Queue
 
-HOST = '169.254.173.129' # IP of the host for ethernet
+#HOST = '169.254.173.129' # IP of the host for ethernet
+HOST = '169.254.57.78'
 PORT = 65432
 
 # Establish a socket connection with the host
