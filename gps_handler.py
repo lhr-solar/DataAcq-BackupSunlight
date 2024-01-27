@@ -80,8 +80,8 @@ def _gps_put_in_ethernet_queue() -> None:
     data = _read_gps()
     if data is None:
         return
-    header = bytearray([0x02, 0x10])
-    data = bytearray(data, "utf-8").rjust(8, b'\x00')
+    header = bytearray([0x02, 0x20])
+    data = bytearray(data[1:-1], "utf-8").rjust(32, b'\x00')
     packet = header + data
     ethernet_put(packet)
 
@@ -93,5 +93,5 @@ async def gps_main() -> None:
     # Read GPS data and add to Ethernet Queue once a second
     while True:
         _gps_put_in_ethernet_queue()
-        logging.debug("GPS data added to queue")
+        #logging.debug("GPS data added to queue")
         await asyncio.sleep(GPS_INTERVAL)
