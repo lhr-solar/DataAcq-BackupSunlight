@@ -43,6 +43,7 @@ async def ethernet_send() -> None:
         # Send the packet to the host
         try:
             _socket.send(packet)
-        except ClientDisconnectError:
+            #logging.debug("Packet: %s\n", packet)
+        except (ClientDisconnectError, BrokenPipeError):
             reconnect_socket()
         
