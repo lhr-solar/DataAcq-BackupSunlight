@@ -80,7 +80,7 @@ def _gps_put_in_ethernet_queue() -> None:
     data = _read_gps()
     if data is None:
         return
-    header = bytearray([0x02, 0x20])
+    header = bytearray([0x02, 0x40])
     data = bytearray(data[1:-1], "utf-8").rjust(32, b'\x00')
     packet = header + data
     ethernet_put(packet)
