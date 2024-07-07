@@ -7,6 +7,7 @@ The Ethernet module will then send these messages to the host.
 import asyncio
 import can
 from ethernet_handler import ethernet_put
+filepath = "/home/pi/DataAcq-BackupSunlight/newLog.txt"
 
 # CAN bus object
 bus = can.Bus(
@@ -56,5 +57,9 @@ async def can_main() -> None:
         msg_id = bytearray(msg_id.to_bytes(4, "little"))
         packet = header + msg_id + idx + data
         # Push the packet to the ethernet queue
+        with open(filepath, 'a') as file:
+                file.write("New Can Msg:\n")
+                file.write(packet.hex()) # write the ehternet packet in hex to the log file 
+                file.write("\n")
         ethernet_put(packet)
         

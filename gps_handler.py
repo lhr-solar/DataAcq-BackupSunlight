@@ -5,6 +5,7 @@ import asyncio
 import typing
 import logging
 from ethernet_handler import ethernet_put
+filepath = "/home/pi/DataAcq-BackupSunlight/newLog.txt"
 
 i2c_bus = smbus.SMBus(1) # I2C bus for GPS Shield
 ADDRESS = 0x42 # GPS Shield I2C Address
@@ -83,6 +84,10 @@ def _gps_put_in_ethernet_queue() -> None:
     header = bytearray([0x02, 0x40])
     data = bytearray(data[1:-1], "utf-8").rjust(32, b'\x00')
     packet = header + data
+    with open(filepath, 'a') as file:
+            file.write("New GPS Msg:\n")
+            file.write(str(packet, 'ascii'))
+            file.write("\n")
     ethernet_put(packet)
 
 async def gps_main() -> None:

@@ -7,12 +7,26 @@ import socket
 import logging
 from asyncio import Queue
 
+filepath = "/home/pi/DataAcq-BackupSunlight/newLog.txt"
+
+def reconnect_socket():
+    """Reconnect to the host."""
+    global _socket
+    logging.warning("Client reconnecting...")
+    try:
+        _socket = socket.create_connection(address=(HOST, PORT))
+    except socket.error as e:
+        with open(filepath, 'a') as file:
+                file.write("Reconnecting to Ethernet:\n")
+        reconnect_socket()
+
 #HOST = '169.254.173.129' # IP of the host for ethernet
 HOST = '169.254.57.78'
 PORT = 65432
 
 # Establish a socket connection with the host
-_socket = socket.create_connection(address=(HOST, PORT))
+#_socket = socket.create_connection(address=(HOST, PORT))
+reconnect_socket()
 
 # Create a Ethernet Queue for data to be sent to the host
 # _ethernet_queue = Queue()
@@ -21,11 +35,6 @@ _ethernet_queue = None
 class ClientDisconnectError(Exception):
     """Raised when the client disconnects."""
 
-def reconnect_socket():
-    """Reconnect to the host."""
-    global _socket
-    logging.warning("Client reconnecting...")
-    _socket = socket.create_connection(address=(HOST, PORT))
 
 def ethernet_put(packet: bytearray) -> None:
     """Put a packet into the Ethernet Queue."""
@@ -44,6 +53,7 @@ async def ethernet_send() -> None:
         try:
             _socket.send(packet)
             #logging.debug("Packet: %s\n", packet)
-        except (ClientDisconnectError, BrokenPipeError):
+        # except (ClientDisconnectError, BrokenPipeError):
+        except socket.error as e:
             reconnect_socket()
         
